@@ -15,7 +15,7 @@ Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 
 [compat]
-HomotopyContinuation = "2.18.2"
+HomotopyContinuation = "2.24"
 ImplicitPlots = "0.2.3"
 LightGraphs = "1.3"
 OrdinaryDiffEq = "6"
