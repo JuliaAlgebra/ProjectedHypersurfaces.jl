@@ -143,6 +143,17 @@ end
     @test all(norm(∇r(z)) < 1e-12 for z in new_pts) # all new points are routing points
     @test all(norm(∇r(z)-rhs0) < 1e-12 for z in S0) # all points are traced to solutions of ∇r=rhs0
 
+    # start_grid_size bounds the number of grid points; both grids use the same number of points per axis
+    @test ProjectedHypersurfaces._points_per_axis(5, nothing, 100, 2) == 10
+    @test ProjectedHypersurfaces._points_per_axis(5, 1, nothing, 2) == 6
+    S1, _ = ProjectedHypersurfaces._expand_start_solutions(
+        ∇r, H, S0[1:1], rhs0, k;
+        start_grid_width=10,
+        start_grid_size=100,
+        verbose=false,
+    )
+    @test length(S1) >= 5
+
     # Check critical points
     options = MonodromyOptions(target_solutions_count=2)
     routing_result = critical_points(r, start_grid_width=0, options=options)
