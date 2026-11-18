@@ -14,6 +14,29 @@ import HomotopyContinuation: MonodromyOptions, UniquePoints, EndgameTracker
 
 Find critical points of the routing function using monodromy and gradient flow.
 Returns a [`RoutingPointsResult`](@ref).
+
+Start solutions are first collected from a grid in the ``k`` real projection variables:
+Newton's method is run from every point of a grid of width `10 * start_grid_width`, and gradient flow
+is run from every point of a grid of width `start_grid_width`. Both grids are centered at
+`start_grid_center` and have the same number of points, so the Newton grid is 10 times coarser.
+
+# Keyword arguments
+- `verbose = true`: print progress information.
+- `start_grid_width = 5`: width of the gradient-flow grid in each variable. If `start_grid_width <= 0`, no grid is used.
+- `start_grid_size = nothing`: upper bound on the number of points in each of the two grids.
+  Each axis gets `floor(start_grid_size^(1/k))` points. Takes precedence over `start_grid_stepsize`.
+- `start_grid_stepsize = nothing`: distance between neighboring points of the gradient-flow grid
+  (default `1.0` if neither `start_grid_size` nor `start_grid_stepsize` is given). The grid then has
+  about `(start_grid_width / start_grid_stepsize + 1)^k` points, which grows quickly with `k`;
+  use `start_grid_size` to bound it directly. If both are passed, `start_grid_stepsize` is ignored with a warning.
+- `start_grid_center = nothing`: center of the grids (default: the origin).
+- `monodromy_at_zero = false`: run monodromy at the right-hand side ``0`` instead of a random one.
+- `options`: `MonodromyOptions` for the monodromy solver.
+
+# Example
+```julia
+critical_points(r; start_grid_size = 1000)   # at most 1000 grid points per grid
+```
 """
 function critical_points(
     r::RoutingFunction,
@@ -21,7 +44,8 @@ function critical_points(
     rhs0::Union{AbstractVector{<:Number},Nothing} = nothing;
     verbose = true,
     start_grid_width = 5,
-    start_grid_stepsize = 0.2,
+    start_grid_size = nothing, # upper bound on the number of points in each start grid (overrides start_grid_stepsize)
+    start_grid_stepsize = nothing,
     start_grid_center = nothing,
     monodromy_at_zero = false,
     options = MonodromyOptions(
@@ -31,6 +55,10 @@ function critical_points(
 )
 
     ∇r = RoutingGradient(r)
+
+    if !isnothing(start_grid_size) && !isnothing(start_grid_stepsize)
+        @warn "Both start_grid_size and start_grid_stepsize were passed; start_grid_stepsize is ignored."
+    end
 
     # Step 1: Setup monodromy solver
     MS, H, S0, rhs0, k = _setup_monodromy_solver(
@@ -45,6 +73,7 @@ function critical_points(
         verbose = verbose,
         start_grid_width = start_grid_width,
         start_grid_stepsize = start_grid_stepsize,
+        start_grid_size = start_grid_size,
         start_grid_center = start_grid_center,
         monodromy_at_zero = monodromy_at_zero,
     )
@@ -116,8 +145,22 @@ function _setup_monodromy_solver(
     return MS, H, S0, rhs0, k
 end
 
+# Number of points per axis of the start grids.
+# If `size` is given, m = floor(size^(1/k)), so a grid has at most `size` points.
+# Otherwise m is the number of points of a grid of the given `width` and `stepsize` (default 1.0).
+function _points_per_axis(width, stepsize, size, k)
+    if !isnothing(size)
+        return max(2, floor(Int, size^(1 / k) + 1e-9))
+    end
+    step = isnothing(stepsize) ? 1.0 : stepsize
+    return floor(Int, width / step + 1e-9) + 1
+end
+
+# Axes of a grid with `m` points per axis and half-width `hw` around `center`.
+_grid_axes(center, hw, m, k) = [range(center[i] - hw, center[i] + hw, length = m) for i = 1:k]
+
 """
-    _expand_start_solutions(∇r, H, S0, rhs0, k; verbose, start_grid_width, start_stepsize, start_center, monodromy_at_zero)
+    _expand_start_solutions(∇r, H, S0, rhs0, k; verbose, start_grid_width, start_grid_stepsize, start_grid_size, start_grid_center, monodromy_at_zero)
 
 Expand S0 by finding solutions of ∇r=0 through gradient descent and tracing to ∇r=rhs0.
 Returns (S0, new_pts) where S0 is the expanded set of start solutions and new_pts are the points found via gradient flow.
@@ -130,7 +173,8 @@ function _expand_start_solutions(
     k::Int;
     verbose = true,
     start_grid_width = 5,
-    start_grid_stepsize = 0.2,
+    start_grid_stepsize = nothing,
+    start_grid_size = nothing,
     start_grid_center = nothing,
     monodromy_at_zero = false,
 )
@@ -145,15 +189,11 @@ function _expand_start_solutions(
     end
 
     w = (start_grid_width / 2)
-    grid = [
-        (start_grid_center[i]-w):start_grid_stepsize:(start_grid_center[i]+w) for
-        i = 1:k
-    ]
+    # Both grids have the same number of points; the Newton grid is just 10 times wider.
+    m = _points_per_axis(start_grid_width, start_grid_stepsize, start_grid_size, k)
+    grid = _grid_axes(start_grid_center, w, m, k)
     newton_w = 10*w
-    newton_grid = [
-        (start_grid_center[i]-newton_w):start_grid_stepsize:(start_grid_center[i]+newton_w) for
-        i = 1:k
-    ]
+    newton_grid = _grid_axes(start_grid_center, newton_w, m, k)
 
     # First we try to find start solutions via blindly applying Newton's method to ∇r=0.
     verbose && println("Expanding start solutions via Newton's method...")
