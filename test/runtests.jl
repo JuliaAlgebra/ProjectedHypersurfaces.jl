@@ -134,35 +134,75 @@ end
     ∇r = RoutingGradient(r)
     MS, H, S0, rhs0, k = ProjectedHypersurfaces._setup_monodromy_solver(∇r)
     @test length(MS.trackers) == 1
+    flow_points = vec([collect(p) for p in Iterators.product(-5.0:5.0, -5.0:5.0)])
+    newton_points = [10 .* p for p in flow_points]
+    original_points = deepcopy((flow_points, newton_points))
     S0, new_pts = ProjectedHypersurfaces._expand_start_solutions(
         ∇r, H, S0, rhs0, k;
-        start_grid_width=10,
-        start_grid_stepsize=1,
+        flow_start_points=flow_points,
+        newton_start_points=newton_points,
     )
+    @test (flow_points, newton_points) == original_points
     @test length(S0) >= 5 # should find at least five new points (one for each local maximum)
+    @test !isempty(new_pts)
     @test all(norm(∇r(z)) < 1e-12 for z in new_pts) # all new points are routing points
     @test all(norm(∇r(z)-rhs0) < 1e-12 for z in S0) # all points are traced to solutions of ∇r=rhs0
 
-    # start_grid_size bounds the number of grid points; both grids use the same number of points per axis
-    @test ProjectedHypersurfaces._points_per_axis(5, nothing, 100, 2) == 10
-    @test ProjectedHypersurfaces._points_per_axis(5, 1, nothing, 2) == 6
-    S1, _ = ProjectedHypersurfaces._expand_start_solutions(
+    # Either expansion stage can be disabled independently with an empty list.
+    S1, pts = ProjectedHypersurfaces._expand_start_solutions(
+        ∇r, H, S0, rhs0, k;
+        flow_start_points=[], newton_start_points=[], verbose=false,
+    )
+    @test S1 === S0
+    @test isempty(pts)
+
+    S1, pts = ProjectedHypersurfaces._expand_start_solutions(
         ∇r, H, S0[1:1], rhs0, k;
-        start_grid_width=10,
-        start_grid_size=100,
+        flow_start_points=[], newton_start_points=S0[2:2], verbose=false,
+    )
+    @test length(S1) == 2
+    @test isempty(pts)
+    @test all(norm(∇r(z)-rhs0) < 1e-12 for z in S1)
+
+    flow_point = [real.(first(new_pts))]
+    S1, pts = ProjectedHypersurfaces._expand_start_solutions(
+        ∇r, H, Vector{ComplexF64}[], rhs0, k;
+        flow_start_points=flow_point, newton_start_points=[], verbose=false,
+    )
+    @test !isempty(S1)
+    @test length(pts) == 1
+    @test all(norm(∇r(z)-rhs0) < 1e-12 for z in S1)
+    @test norm(∇r(only(pts))) < 1e-12
+
+    for (flow, newton) in ((flow_point, []), ([], flow_point))
+        S1, pts = ProjectedHypersurfaces._expand_start_solutions(
+            ∇r, H, Vector{ComplexF64}[], zeros(k), k;
+            flow_start_points=flow, newton_start_points=newton,
+            monodromy_at_zero=true, verbose=false,
+        )
+        @test length(S1) == length(pts) == 1
+        @test norm(∇r(only(S1))) < 1e-12
+    end
+
+    @test_throws DimensionMismatch ProjectedHypersurfaces._expand_start_solutions(
+        ∇r, H, S0, rhs0, k;
+        flow_start_points=[zeros(k-1)], newton_start_points=[], verbose=false,
+    )
+    @test_throws DimensionMismatch ProjectedHypersurfaces._expand_start_solutions(
+        ∇r, H, S0, rhs0, k;
+        flow_start_points=[], newton_start_points=[zeros(k+1)],
         verbose=false,
     )
-    @test length(S1) >= 5
 
     # Check critical points
     options = MonodromyOptions(target_solutions_count=2)
-    routing_result = critical_points(r, start_grid_width=0, options=options)
+    routing_result = critical_points(r, flow_start_points=[], newton_start_points=[], options=options)
     @test routing_result isa RoutingPointsResult
     @test all(norm(evaluate(∇r, z, zeros(ComplexF64, size(∇r, 1)))) < 1e-12 for z in routing_points(routing_result))
     @test all(norm.(∇r_symbolic.(complex_critical_points(routing_result))) .< 1e-12)
 
     # Test that trying to fix a seed via keyword (deprecated) gives an error
-    @test_throws MethodError critical_points(r, start_grid_width=0, options=options, seed=0x12345678)
+    @test_throws MethodError critical_points(r, flow_start_points=[], newton_start_points=[], options=options, seed=0x12345678)
 
 end;
 
@@ -201,7 +241,7 @@ end;
 
     # Check critical points
     options = MonodromyOptions(target_solutions_count=2)
-    routing_result = critical_points(r, start_grid_width=0, options=options)
+    routing_result = critical_points(r, flow_start_points=[], newton_start_points=[], options=options)
     @test all(norm.(∇r_symbolic.(solutions(result(routing_result)))) .< 1e-12)
 
 end;
@@ -232,7 +272,7 @@ end;
 
     # Check critical points
     options = MonodromyOptions(target_solutions_count=2)
-    routing_result = critical_points(r, start_grid_width=0, options=options)
+    routing_result = critical_points(r, flow_start_points=[], newton_start_points=[], options=options)
     @test all(norm.(∇r_symbolic.(solutions(result(routing_result)))) .< 1e-12)
 
 end

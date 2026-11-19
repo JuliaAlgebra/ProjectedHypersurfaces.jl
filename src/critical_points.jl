@@ -15,27 +15,19 @@ import HomotopyContinuation: MonodromyOptions, UniquePoints, EndgameTracker
 Find critical points of the routing function using monodromy and gradient flow.
 Returns a [`RoutingPointsResult`](@ref).
 
-Start solutions are first collected from a grid in the ``k`` real projection variables:
-Newton's method is run from every point of a grid of width `10 * start_grid_width`, and gradient flow
-is run from every point of a grid of width `start_grid_width`. Both grids are centered at
-`start_grid_center` and have the same number of points, so the Newton grid is 10 times coarser.
+Start solutions are first collected by applying Newton's method to ``∇r = rhs0`` from `newton_start_points` and gradient flow to ``∇r = 0`` from `flow_start_points`. The two lists are independent, and their default lengths do not depend on the number of projection variables ``k``.
 
 # Keyword arguments
 - `verbose = true`: print progress information.
-- `start_grid_width = 5`: width of the gradient-flow grid in each variable. If `start_grid_width <= 0`, no grid is used.
-- `start_grid_size = nothing`: upper bound on the number of points in each of the two grids.
-  Each axis gets `floor(start_grid_size^(1/k))` points. Takes precedence over `start_grid_stepsize`.
-- `start_grid_stepsize = nothing`: distance between neighboring points of the gradient-flow grid
-  (default `1.0` if neither `start_grid_size` nor `start_grid_stepsize` is given). The grid then has
-  about `(start_grid_width / start_grid_stepsize + 1)^k` points, which grows quickly with `k`;
-  use `start_grid_size` to bound it directly. If both are passed, `start_grid_stepsize` is ignored with a warning.
-- `start_grid_center = nothing`: center of the grids (default: the origin).
+- `flow_start_points`: list of real vectors of length `k` for gradient flow (default: 100 independent standard normal points). Pass `[]` to skip gradient flow.
+- `newton_start_points`: list of vectors of length `k` for Newton's method (default: 10 independent standard normal points). Pass `[]` to skip Newton's method.
 - `monodromy_at_zero = false`: run monodromy at the right-hand side ``0`` instead of a random one.
 - `options`: `MonodromyOptions` for the monodromy solver.
 
 # Example
 ```julia
-critical_points(r; start_grid_size = 1000)   # at most 1000 grid points per grid
+flow_points = [collect(p) for p in Iterators.product(fill(-2:1:2, nvariables(r))...)]
+critical_points(r; flow_start_points = flow_points, newton_start_points = [])
 ```
 """
 function critical_points(
@@ -43,10 +35,8 @@ function critical_points(
     S0::Union{AbstractVector{<:AbstractVector{<:Number}},Nothing} = nothing,
     rhs0::Union{AbstractVector{<:Number},Nothing} = nothing;
     verbose = true,
-    start_grid_width = 5,
-    start_grid_size = nothing, # upper bound on the number of points in each start grid (overrides start_grid_stepsize)
-    start_grid_stepsize = nothing,
-    start_grid_center = nothing,
+    flow_start_points = [randn(nvariables(r)) for _ in 1:100],
+    newton_start_points = [randn(nvariables(r)) for _ in 1:10],
     monodromy_at_zero = false,
     options = MonodromyOptions(
         parameter_sampler = p -> 10 .* randn(ComplexF64, length(p)),
@@ -55,10 +45,6 @@ function critical_points(
 )
 
     ∇r = RoutingGradient(r)
-
-    if !isnothing(start_grid_size) && !isnothing(start_grid_stepsize)
-        @warn "Both start_grid_size and start_grid_stepsize were passed; start_grid_stepsize is ignored."
-    end
 
     # Step 1: Setup monodromy solver
     MS, H, S0, rhs0, k = _setup_monodromy_solver(
@@ -71,10 +57,8 @@ function critical_points(
     S0, new_pts = _expand_start_solutions(
         ∇r, H, S0, rhs0, k;
         verbose = verbose,
-        start_grid_width = start_grid_width,
-        start_grid_stepsize = start_grid_stepsize,
-        start_grid_size = start_grid_size,
-        start_grid_center = start_grid_center,
+        flow_start_points = flow_start_points,
+        newton_start_points = newton_start_points,
         monodromy_at_zero = monodromy_at_zero,
     )
 
@@ -82,7 +66,6 @@ function critical_points(
     return _solve_and_trace(
         ∇r, MS, H, S0, rhs0, new_pts;
         monodromy_at_zero = monodromy_at_zero,
-        start_grid_width = start_grid_width,
     )
 end
 
@@ -145,25 +128,11 @@ function _setup_monodromy_solver(
     return MS, H, S0, rhs0, k
 end
 
-# Number of points per axis of the start grids.
-# If `size` is given, m = floor(size^(1/k)), so a grid has at most `size` points.
-# Otherwise m is the number of points of a grid of the given `width` and `stepsize` (default 1.0).
-function _points_per_axis(width, stepsize, size, k)
-    if !isnothing(size)
-        return max(2, floor(Int, size^(1 / k) + 1e-9))
-    end
-    step = isnothing(stepsize) ? 1.0 : stepsize
-    return floor(Int, width / step + 1e-9) + 1
-end
-
-# Axes of a grid with `m` points per axis and half-width `hw` around `center`.
-_grid_axes(center, hw, m, k) = [range(center[i] - hw, center[i] + hw, length = m) for i = 1:k]
-
 """
-    _expand_start_solutions(∇r, H, S0, rhs0, k; verbose, start_grid_width, start_grid_stepsize, start_grid_size, start_grid_center, monodromy_at_zero)
+    _expand_start_solutions(∇r, H, S0, rhs0, k; verbose, flow_start_points, newton_start_points, monodromy_at_zero)
 
-Expand S0 by finding solutions of ∇r=0 through gradient descent and tracing to ∇r=rhs0.
-Returns (S0, new_pts) where S0 is the expanded set of start solutions and new_pts are the points found via gradient flow.
+Expand S0 using Newton's method on ∇r=rhs0 and gradient flow followed by tracing from ∇r=0 to ∇r=rhs0.
+Returns (S0, new_pts) where S0 is the expanded set of start solutions and new_pts are the points found at ∇r=0.
 """
 function _expand_start_solutions(
     ∇r::RoutingGradient,
@@ -172,35 +141,24 @@ function _expand_start_solutions(
     rhs0::AbstractVector{<:Number},
     k::Int;
     verbose = true,
-    start_grid_width = 5,
-    start_grid_stepsize = nothing,
-    start_grid_size = nothing,
-    start_grid_center = nothing,
+    flow_start_points = [randn(k) for _ in 1:100],
+    newton_start_points = [randn(k) for _ in 1:10],
     monodromy_at_zero = false,
 )
     new_pts = Vector{ComplexF64}[]
-    # Setting up grid
-    if start_grid_width <= 0
+    for points in (flow_start_points, newton_start_points)
+        all(p -> length(p) == k, points) || throw(DimensionMismatch("Start points must have length $k."))
+    end
+    if isempty(flow_start_points) && isempty(newton_start_points)
         return S0, new_pts
     end
 
-    if isnothing(start_grid_center)
-        start_grid_center = zeros(k)
-    end
-
-    w = (start_grid_width / 2)
-    # Both grids have the same number of points; the Newton grid is just 10 times wider.
-    m = _points_per_axis(start_grid_width, start_grid_stepsize, start_grid_size, k)
-    grid = _grid_axes(start_grid_center, w, m, k)
-    newton_w = 10*w
-    newton_grid = _grid_axes(start_grid_center, newton_w, m, k)
-
-    # First we try to find start solutions via blindly applying Newton's method to ∇r=0.
+    # First we try to find start solutions via blindly applying Newton's method to ∇r=rhs0.
     verbose && println("Expanding start solutions via Newton's method...")
     newton_success_count = 0
     start_pt = zeros(ComplexF64, k)
-    ProgressMeter.@showprogress for start_point in Iterators.product(newton_grid...)
-            start_pt .= start_point # this avoids allocations from splatting the tuple into the newton function
+    ProgressMeter.@showprogress for start_point in newton_start_points
+            start_pt .= start_point # reuse the buffer without modifying the supplied point
             # Newton's method on each initial guess
             try
                 pt = newton(∇r, start_pt, rhs0; max_iters = 200) |> solution
@@ -221,13 +179,13 @@ function _expand_start_solutions(
     end
 
     # since the points obtained via Newton's method are already solutions to ∇r=rhs0, we can directly add them to S0 if monodromy_at_zero is false
-    if !monodromy_at_zero
+    if !monodromy_at_zero && !isempty(new_pts)
         S0 = HC.unique_points([S0; new_pts])
         # to avoid redundant work later, we remove the points found via Newton's method from new_pts so that we aren't tracing them using monodromy
         empty!(new_pts)
     end
 
-    verbose && println("Successful Newton's method attempts: $(newton_success_count) out of $(length(newton_grid[1])^k) ($(round(newton_success_count / (length(newton_grid[1])^k) * 100, digits=2))%)")
+    verbose && !isempty(newton_start_points) && println("Successful Newton's method attempts: $(newton_success_count) out of $(length(newton_start_points)) ($(round(newton_success_count / length(newton_start_points) * 100, digits=2))%)")
     verbose && println("Found $num_newton_pts solutions to ∇r(z)=rhs0.")
     
     # Now we try gradient flow
@@ -238,9 +196,9 @@ function _expand_start_solutions(
 
     gradient_success_count = 0
     start_pt = zeros(k)
-    ProgressMeter.@showprogress for start_point in Iterators.product(grid...)
+    ProgressMeter.@showprogress for start_point in flow_start_points
         try
-            start_pt .= start_point # this avoids allocations from splatting the tuple into the ODEProblem
+            start_pt .= start_point # reuse the buffer without modifying the supplied point
             prob = SciMLBase.ODEProblem(g, start_pt, tspan)
             sol = DE.solve(prob, reltol = 1e-6, abstol = 1e-6)
             convergence_point = last(sol.u)
@@ -256,8 +214,10 @@ function _expand_start_solutions(
     if length(new_pts) > 0
         new_pts = HC.unique_points(new_pts)
     end
-    verbose && println("Successful gradient flow attempts: $(gradient_success_count) out of $(length(grid[1])^k) ($(round(gradient_success_count / (length(grid[1])^k) * 100, digits=2))%)")
+    verbose && !isempty(flow_start_points) && println("Successful gradient flow attempts: $(gradient_success_count) out of $(length(flow_start_points)) ($(round(gradient_success_count / length(flow_start_points) * 100, digits=2))%)")
     verbose && println("Found $(length(new_pts)) routing points via gradient flow.")
+
+    isempty(new_pts) && return S0, new_pts
 
     if !monodromy_at_zero
         start_parameters!(H, zeros(ComplexF64, length(rhs0)))
@@ -276,7 +236,7 @@ function _expand_start_solutions(
 end
 
 """
-    _solve_and_trace(MS, H, S0, rhs0, new_pts; monodromy_at_zero, start_grid_width)
+    _solve_and_trace(∇r, MS, H, S0, rhs0, new_pts; monodromy_at_zero)
 
 Perform monodromy solving and trace solutions to ∇r=0.
 Returns a [`RoutingPointsResult`](@ref).
@@ -289,7 +249,6 @@ function _solve_and_trace(
     rhs0::AbstractVector{<:Number},
     new_pts::AbstractVector{<:AbstractVector{<:Number}};
     monodromy_at_zero = false,
-    start_grid_width = 5,
 )
     ### Monodromy
     mon_result = monodromy_solve(MS, S0, rhs0, rand(UInt32))
@@ -306,7 +265,7 @@ function _solve_and_trace(
         routing_points = real_solutions(result)
 
         # Make sure none of the routing points found via gradient flow are lost
-        if start_grid_width > 0
+        if !isempty(new_pts)
             routing_points = HC.unique_points([routing_points; real.(new_pts)])
         end
         return RoutingPointsResult(routing_points, result, mon_result, ∇r.r)
