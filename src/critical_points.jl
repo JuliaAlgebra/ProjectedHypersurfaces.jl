@@ -47,7 +47,7 @@ function critical_points(
     ∇r = RoutingGradient(r)
 
     # Step 1: Setup monodromy solver
-    MS, H, S0, rhs0, k = _setup_monodromy_solver(
+    MS, H, S0, rhs0 = _setup_monodromy_solver(
         ∇r, S0, rhs0;
         monodromy_at_zero = monodromy_at_zero,
         options = options,
@@ -55,7 +55,7 @@ function critical_points(
 
     # Step 2: Expand start solutions via Newton's method and gradient flow
     S0, new_pts = _expand_start_solutions(
-        ∇r, H, S0, rhs0, k;
+        ∇r, H, S0, rhs0;
         verbose = verbose,
         flow_start_points = flow_start_points,
         newton_start_points = newton_start_points,
@@ -73,8 +73,8 @@ end
     _setup_monodromy_solver(∇r, S0, rhs0; monodromy_at_zero, options)
 
 Set up the monodromy solver and initial start pair.
-Returns (MS, H, S0, rhs0, k) where MS is the MonodromySolver, H is the homotopy,
-S0 are the start solutions, rhs0 is the target parameters, and k is the number of variables.
+Returns (MS, H, S0, rhs0) where MS is the MonodromySolver, H is the homotopy,
+S0 are the start solutions, and rhs0 is the target parameters.
 """
 function _setup_monodromy_solver(
     ∇r::RoutingGradient,
@@ -125,26 +125,27 @@ function _setup_monodromy_solver(
         end
     end
 
-    return MS, H, S0, rhs0, k
+    return MS, H, S0, rhs0
 end
 
 """
-    _expand_start_solutions(∇r, H, S0, rhs0, k; verbose, flow_start_points, newton_start_points, monodromy_at_zero)
+    _expand_start_solutions(∇r, H, S0, rhs0; verbose, flow_start_points, newton_start_points, monodromy_at_zero)
 
 Expand S0 using Newton's method on ∇r=rhs0 and gradient flow followed by tracing from ∇r=0 to ∇r=rhs0.
+The start-point lists are required; their defaults are chosen by `critical_points`.
 Returns (S0, new_pts) where S0 is the expanded set of start solutions and new_pts are the points found at ∇r=0.
 """
 function _expand_start_solutions(
     ∇r::RoutingGradient,
     H::RoutingPointsHomotopy,
     S0::AbstractVector{<:AbstractVector{<:Number}},
-    rhs0::AbstractVector{<:Number},
-    k::Int;
+    rhs0::AbstractVector{<:Number};
     verbose = true,
-    flow_start_points = [randn(k) for _ in 1:100],
-    newton_start_points = [randn(k) for _ in 1:10],
+    flow_start_points,
+    newton_start_points,
     monodromy_at_zero = false,
 )
+    k = size(∇r, 2)
     new_pts = Vector{ComplexF64}[]
     for points in (flow_start_points, newton_start_points)
         all(p -> length(p) == k, points) || throw(DimensionMismatch("Start points must have length $k."))

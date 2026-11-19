@@ -132,13 +132,14 @@ end
 
     # Test that the expansion of start solutions works
     ∇r = RoutingGradient(r)
-    MS, H, S0, rhs0, k = ProjectedHypersurfaces._setup_monodromy_solver(∇r)
+    MS, H, S0, rhs0 = ProjectedHypersurfaces._setup_monodromy_solver(∇r)
+    k = size(∇r, 2)
     @test length(MS.trackers) == 1
     flow_points = vec([collect(p) for p in Iterators.product(-5.0:5.0, -5.0:5.0)])
     newton_points = [10 .* p for p in flow_points]
     original_points = deepcopy((flow_points, newton_points))
     S0, new_pts = ProjectedHypersurfaces._expand_start_solutions(
-        ∇r, H, S0, rhs0, k;
+        ∇r, H, S0, rhs0;
         flow_start_points=flow_points,
         newton_start_points=newton_points,
     )
@@ -150,14 +151,14 @@ end
 
     # Either expansion stage can be disabled independently with an empty list.
     S1, pts = ProjectedHypersurfaces._expand_start_solutions(
-        ∇r, H, S0, rhs0, k;
+        ∇r, H, S0, rhs0;
         flow_start_points=[], newton_start_points=[], verbose=false,
     )
     @test S1 === S0
     @test isempty(pts)
 
     S1, pts = ProjectedHypersurfaces._expand_start_solutions(
-        ∇r, H, S0[1:1], rhs0, k;
+        ∇r, H, S0[1:1], rhs0;
         flow_start_points=[], newton_start_points=S0[2:2], verbose=false,
     )
     @test length(S1) == 2
@@ -166,7 +167,7 @@ end
 
     flow_point = [real.(first(new_pts))]
     S1, pts = ProjectedHypersurfaces._expand_start_solutions(
-        ∇r, H, Vector{ComplexF64}[], rhs0, k;
+        ∇r, H, Vector{ComplexF64}[], rhs0;
         flow_start_points=flow_point, newton_start_points=[], verbose=false,
     )
     @test !isempty(S1)
@@ -176,7 +177,7 @@ end
 
     for (flow, newton) in ((flow_point, []), ([], flow_point))
         S1, pts = ProjectedHypersurfaces._expand_start_solutions(
-            ∇r, H, Vector{ComplexF64}[], zeros(k), k;
+            ∇r, H, Vector{ComplexF64}[], zeros(k);
             flow_start_points=flow, newton_start_points=newton,
             monodromy_at_zero=true, verbose=false,
         )
@@ -185,11 +186,11 @@ end
     end
 
     @test_throws DimensionMismatch ProjectedHypersurfaces._expand_start_solutions(
-        ∇r, H, S0, rhs0, k;
+        ∇r, H, S0, rhs0;
         flow_start_points=[zeros(k-1)], newton_start_points=[], verbose=false,
     )
     @test_throws DimensionMismatch ProjectedHypersurfaces._expand_start_solutions(
-        ∇r, H, S0, rhs0, k;
+        ∇r, H, S0, rhs0;
         flow_start_points=[], newton_start_points=[zeros(k+1)],
         verbose=false,
     )
