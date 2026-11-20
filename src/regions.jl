@@ -337,7 +337,7 @@ function gradient_roadmap(
 
     ode_log! = set_up_ode(∇r)
 
-    graph = LightGraphs.SimpleGraph(length(crit_pts))
+    graph = Graphs.SimpleGraph(length(crit_pts))
     connectivity_status = zeros(Int, length(crit_pts))
     critical_points_indices = collect(1:length(crit_pts))
 
@@ -373,7 +373,7 @@ function gradient_roadmap(
                 abstol,
             )
             if isempty(failed_info_pos)
-                LightGraphs.add_edge!(graph, pair_pos[1], pair_pos[2])
+                Graphs.add_edge!(graph, pair_pos[1], pair_pos[2])
             else
                 push!(
                     failed_info_list,
@@ -393,7 +393,7 @@ function gradient_roadmap(
             )
 
             if isempty(failed_info_neg)
-                LightGraphs.add_edge!(graph, pair_neg[1], pair_neg[2])
+                Graphs.add_edge!(graph, pair_neg[1], pair_neg[2])
             else
                 push!(
 
@@ -422,7 +422,7 @@ function gradient_roadmap(
                     abstol,
                 )
                 if isempty(failed_info)
-                    LightGraphs.add_edge!(graph, pair[1], pair[2])
+                    Graphs.add_edge!(graph, pair[1], pair[2])
                     connectivity_status[i] = 1
                     sub_failed_info_list = []
                     break
@@ -444,7 +444,7 @@ function gradient_roadmap(
                     abstol,
                 )
                 if isempty(failed_info)
-                    LightGraphs.add_edge!(graph, pair[1], pair[2])
+                    Graphs.add_edge!(graph, pair[1], pair[2])
                     connectivity_status[i] = 1
                     sub_failed_info_list = []
                     break
@@ -463,7 +463,7 @@ function gradient_roadmap(
     end
 
 
-    partition = LightGraphs.connected_components(graph)
+    partition = Graphs.connected_components(graph)
     partition_critical_point_indices = Vector{Int}[]
     for par in partition
         push!(partition_critical_point_indices, @view(critical_points_indices[par]))
