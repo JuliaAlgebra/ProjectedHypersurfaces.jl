@@ -252,7 +252,7 @@ The following pictures show gradient roadmaps for other examples of discriminant
 The code relies on the following Julia packages:
 - `HomotopyContinuation.jl` (for numerical algebraic geometry)
 - `OrdinaryDiffEq.jl` (for gradient flow)
-- `LightGraphs.jl` (for building the connectivity graph).
+- `Graphs.jl` (for building the connectivity graph).
 
 ## Statement on AI use
 This repository was developed with the assistance of AI tools, including large language models such as Codex and GitHub Copilot, which have been used to assist with tasks such as code review, memory allocation optimization, documentation, and minor code generation for routine tasks. The authors have reviewed, edited, and verified the outputs from these tools, and take full responsibility for the correctness.

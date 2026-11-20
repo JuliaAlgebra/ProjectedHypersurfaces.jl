@@ -1,5 +1,6 @@
 module ProjectedHypersurfaces
-using HomotopyContinuation, LinearAlgebra, OrdinaryDiffEq, SciMLBase, LightGraphs, ProgressMeter
+using HomotopyContinuation, LinearAlgebra, OrdinaryDiffEq, SciMLBase, ProgressMeter
+import Graphs
 
 const HC = HomotopyContinuation
 const DE = OrdinaryDiffEq
