@@ -114,7 +114,7 @@ function ModelKit.evaluate(r::RoutingFunction, x, p = nothing)
     end
 
     for h in H
-        u += h(x)
+        u += log_evaluate(h, x)
     end
 
     u
@@ -140,7 +140,7 @@ function gradient!(u, r::RoutingFunction{TQ,TP,TC}, x, p = nothing) where {TQ,TP
 
     # Projected hypersurface
     for h in H
-        gradient!(gradient_temp, h, x)
+        log_gradient!(gradient_temp, h, x)
         u .+= gradient_temp
     end
 
@@ -181,7 +181,7 @@ function gradient_and_hessian!(u, U, r::RoutingFunction{TQ,TP,TC}, x, p = nothin
 
     # Projected hypersurface
     for h in H
-        gradient_and_hessian!(gradient_temp, Hess_temp, h, x)
+        log_gradient_and_hessian!(gradient_temp, Hess_temp, h, x)
         u .+= gradient_temp
         U .+= Hess_temp
     end
