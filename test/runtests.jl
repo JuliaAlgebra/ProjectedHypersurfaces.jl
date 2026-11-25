@@ -588,7 +588,7 @@ end
 
     p = [1, 0] # point with singular witness point
 
-    @test h(p) |> abs < 1e-12
+    @test log_evaluate(h, p) |> abs < 1e-12
     @test h.PWS.tracker.state.singular
     @test !h.GC.fiber_valid
 
@@ -608,7 +608,7 @@ end
 
     # When we move the line to pass through (1,1), one witness point goes to infinity
     # The single reamining witness point is not enough for valuation
-    @test isnan(h([1, 1])) 
+    @test isnan(log_evaluate(h, [1, 1]))
     @test count(h.PWS.track_report) == 1
     @test !h.GC.fiber_valid
 

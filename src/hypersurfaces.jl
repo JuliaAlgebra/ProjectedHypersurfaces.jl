@@ -125,7 +125,7 @@ membership(p, h::ProjectedHypersurface; kwargs...) = Base.in(p, h; kwargs...)
     log_evaluate(h::ProjectedHypersurface, x, p = nothing)
 
 Evaluate `log(abs(f(x)))`, up to an additive constant determined by the
-pseudo-witness line, where `f` defines `h`. Also available as `h(x)`.
+pseudo-witness line, where `f` defines `h`.
 The optional argument `p` is ignored.
 """
 function log_evaluate(h::ProjectedHypersurface{TC}, x, p = nothing) where {TC}
@@ -144,8 +144,6 @@ function log_evaluate(h::ProjectedHypersurface{TC}, x, p = nothing) where {TC}
 
     u
 end
-
-(h::ProjectedHypersurface)(x, p = nothing) = log_evaluate(h, x, p)
 
 function log_gradient!(u, h::ProjectedHypersurface{TC}, x, p = nothing) where {TC}
     
