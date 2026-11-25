@@ -43,7 +43,7 @@ u = rand(ComplexF64, 2);
 
 U = rand(ComplexF64, 2, 2);
 
-@benchmark ProjectedHypersurfaces.gradient_and_hessian!(
+@benchmark ProjectedHypersurfaces.log_gradient_and_hessian!(
 
 $u, $U, $h, x
 
@@ -53,7 +53,7 @@ x = rand(ComplexF64, 2)
 
 )
 
-@benchmark ProjectedHypersurfaces.gradient!(
+@benchmark ProjectedHypersurfaces.log_gradient!(
 
 $u, $h, x
 
@@ -86,7 +86,7 @@ z = rand(ComplexF64, 2);
 function repeated_gradient!(u, h, x0, direction, stepsize, steps)
     x = copy(x0)
     for _ = 1:steps
-        ProjectedHypersurfaces.gradient!(u, h, x)
+        ProjectedHypersurfaces.log_gradient!(u, h, x)
         @. x += stepsize * direction
     end
     u
@@ -95,7 +95,7 @@ end
 function repeated_gradient_and_hessian!(u, U, h, x0, direction, stepsize, steps)
     x = copy(x0)
     for _ = 1:steps
-        ProjectedHypersurfaces.gradient_and_hessian!(u, U, h, x)
+        ProjectedHypersurfaces.log_gradient_and_hessian!(u, U, h, x)
         @. x += stepsize * direction
     end
     u, U

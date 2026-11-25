@@ -131,15 +131,15 @@ We can use `h` to evaluate (up to an additive constant) *the logarithm of the ab
 ```julia-repl
 julia> p = [1, 1];
 
-julia> h(p) # the value depends on the direction of the pseudo-witness line
+julia> log_evaluate(h, p) # the value depends on the direction of the pseudo-witness line
 1.5362619674238103
 
-julia> gradient(h, p)
+julia> log_gradient(h, p)
 2-element Vector{ComplexF64}:
  -0.6666666666666665 + 4.440892098500626e-16im
   1.3333333333333335 - 2.220446049250313e-16im
 
-julia> hessian(h, p) 
+julia> log_hessian(h, p)
 2×2 Matrix{ComplexF64}:
  -1.11111-9.99201e-16im  0.888889+4.44089e-16im
  0.888889+7.77156e-16im  -1.77778+9.71445e-16im

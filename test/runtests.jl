@@ -79,8 +79,8 @@ end
     @test norm(∇r_symbolic(p0)-∇r(p0)) < 1e-12
 
     # test Jacobian (Hessian) across an evaluation sequence to verify correct cache usage. 
-    log_gradient = System(differentiate(log(h_symbolic), [a, b]), variables=[a, b])
-    log_hessian = System(vec(differentiate(log_gradient.expressions, [a, b])), variables=[a, b])
+    symbolic_log_gradient = System(differentiate(log(h_symbolic), [a, b]), variables=[a, b])
+    symbolic_log_hessian = System(vec(differentiate(symbolic_log_gradient.expressions, [a, b])), variables=[a, b])
     for start in ([0.3, -0.7], ComplexF64[0.2+0.3im, -0.4+0.1im])
         reset_fiber_cache!(h)
         nearby = start + [1e-3, -2e-3]
@@ -90,13 +90,13 @@ end
         for point in (start, nearby, nearby), offset in (nothing, ComplexF64[0.1, -0.2])
             fill!(u, ComplexF64(NaN))
             fill!(U, ComplexF64(NaN))
-            ProjectedHypersurfaces.gradient_and_hessian!(u, U, h, point, offset)
-            expected_gradient = log_gradient(point)
+            ProjectedHypersurfaces.log_gradient_and_hessian!(u, U, h, point, offset)
+            expected_gradient = symbolic_log_gradient(point)
             if !isnothing(offset)
                 expected_gradient -= offset
             end
             @test u ≈ expected_gradient atol = 1e-11
-            @test U ≈ reshape(log_hessian(point), 2, 2) atol = 1e-10
+            @test U ≈ reshape(symbolic_log_hessian(point), 2, 2) atol = 1e-10
         end
     end
 
@@ -487,18 +487,18 @@ end
     log_abs_h = p -> log(abs(p[1]^2 - 4*p[2]))
     direction = h.PWS.L.direction
     C = log(abs(direction[1]^2))
-    @test h(pt) + C - log_abs_h(pt) |> abs < 1e-6
+    @test log_evaluate(h, pt) + C - log_abs_h(pt) |> abs < 1e-6
 
     # Test the gradient 
     pt = [3, 2]
     ∇log_abs_h = p -> [(2 * p[1])/(p[1]^2 - 4 * p[2]), -4/(p[1]^2 - 4 * p[2])]
-    @test gradient(h, pt) - ∇log_abs_h(pt) |> norm < 1e-6
+    @test log_gradient(h, pt) - ∇log_abs_h(pt) |> norm < 1e-6
 
     # Test the Hessian
     pt = [11, 7]
     Hess_log_abs_h = p -> [[2/(p[1]^2 - 4*p[2]) - 4*p[1]^2/(p[1]^2 - 4*p[2])^2 8*p[1]/(p[1]^2 - 4*p[2])^2];
         [8*p[1]/(p[1]^2 - 4*p[2])^2 -16/(p[1]^2 - 4*p[2])^2]]
-    @test Hess_log_abs_h(pt) - ProjectedHypersurfaces.gradient_and_hessian(h, pt)[2] |> norm < 1e-6
+    @test Hess_log_abs_h(pt) - log_hessian(h, pt) |> norm < 1e-6
 
 end
 @testset "Noninjective projection" begin
@@ -511,8 +511,8 @@ end
 
     @test degree(h) == 1 # the downstairs degree should be 1
 
-    # h(y,z) = y (up to a constant) so gradient(h, [y, z]) = [1/y, 0]
-    @test gradient(h, [2, 3]) - [1/2, 0] |> norm < 1e-6
+    # h(y,z) = y (up to a constant) so log_gradient(h, [y, z]) = [1/y, 0]
+    @test log_gradient(h, [2, 3]) - [1/2, 0] |> norm < 1e-6
 
 end
 
@@ -588,11 +588,11 @@ end
 
     p = [1, 0] # point with singular witness point
 
-    @test h(p) |> abs < 1e-12
+    @test log_evaluate(h, p) |> abs < 1e-12
     @test h.PWS.tracker.state.singular
     @test !h.GC.fiber_valid
 
-    @test all(isnan, gradient(h, p))
+    @test all(isnan, log_gradient(h, p))
 
 
 end
@@ -608,7 +608,7 @@ end
 
     # When we move the line to pass through (1,1), one witness point goes to infinity
     # The single reamining witness point is not enough for valuation
-    @test isnan(h([1, 1])) 
+    @test isnan(log_evaluate(h, [1, 1]))
     @test count(h.PWS.track_report) == 1
     @test !h.GC.fiber_valid
 

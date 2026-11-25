@@ -1,7 +1,7 @@
 export ProjectedHypersurface, 
-evaluate,
-gradient,
-hessian,
+log_evaluate,
+log_gradient,
+log_hessian,
 degree,
 membership,
 trace_test,
@@ -121,7 +121,14 @@ function Base.in(
 end
 membership(p, h::ProjectedHypersurface; kwargs...) = Base.in(p, h; kwargs...)
 
-function evaluate(h::ProjectedHypersurface{TC}, x, p = nothing) where {TC}
+"""
+    log_evaluate(h::ProjectedHypersurface, x, p = nothing)
+
+Evaluate `log(abs(f(x)))`, up to an additive constant determined by the
+pseudo-witness line, where `f` defines `h`.
+The optional argument `p` is ignored.
+"""
+function log_evaluate(h::ProjectedHypersurface{TC}, x, p = nothing) where {TC}
     PWS, GC = h.PWS, h.GC
 
     S = GC.S
@@ -138,7 +145,7 @@ function evaluate(h::ProjectedHypersurface{TC}, x, p = nothing) where {TC}
     u
 end
 
-function gradient!(u, h::ProjectedHypersurface{TC}, x, p = nothing) where {TC}
+function log_gradient!(u, h::ProjectedHypersurface{TC}, x, p = nothing) where {TC}
     
     PWS, GC = h.PWS, h.GC
 
@@ -204,14 +211,21 @@ function gradient!(u, h::ProjectedHypersurface{TC}, x, p = nothing) where {TC}
 
     nothing
 end
-function gradient(h::ProjectedHypersurface{TC}, x, p = nothing) where {TC}
+"""
+    log_gradient(h::ProjectedHypersurface, x, p = nothing)
+
+Compute the gradient of `log(abs(f(x)))` for real `x`, where `f` defines `h`.
+For complex `x`, return the analytic continuation `∇f(x) / f(x)`.
+If supplied, subtract the offset vector `p` from the result.
+"""
+function log_gradient(h::ProjectedHypersurface{TC}, x, p = nothing) where {TC}
     k = nvariables(h)
     u = zeros(ComplexF64, k)
-    gradient!(u, h, x, p)
+    log_gradient!(u, h, x, p)
     u
 end
 
-function gradient_and_hessian!(u, U, h::ProjectedHypersurface{TC}, x, p = nothing) where {TC}
+function log_gradient_and_hessian!(u, U, h::ProjectedHypersurface{TC}, x, p = nothing) where {TC}
 
     PWS, GC = h.PWS, h.GC
 
@@ -309,16 +323,23 @@ function gradient_and_hessian!(u, U, h::ProjectedHypersurface{TC}, x, p = nothin
 end
 
 
-function gradient_and_hessian(h::ProjectedHypersurface{TC}, x, p = nothing) where {TC}
+function log_gradient_and_hessian(h::ProjectedHypersurface{TC}, x, p = nothing) where {TC}
 
     k = nvariables(h)
     u = zeros(ComplexF64, k)
     U = zeros(ComplexF64, k, k)
-    gradient_and_hessian!(u, U, h, x, p)
+    log_gradient_and_hessian!(u, U, h, x, p)
     u, U
 end
 
-hessian(h::ProjectedHypersurface{TC}, x, p = nothing) where {TC} = gradient_and_hessian(h, x, p)[2]
+"""
+    log_hessian(h::ProjectedHypersurface, x, p = nothing)
+
+Compute the Hessian of `log(abs(f(x)))` for real `x`, where `f` defines `h`,
+and its analytic continuation for complex `x`. The optional offset `p` does
+not affect the Hessian.
+"""
+log_hessian(h::ProjectedHypersurface{TC}, x, p = nothing) where {TC} = log_gradient_and_hessian(h, x, p)[2]
 
 """
     fiber_tracking_stats(h::ProjectedHypersurface)
