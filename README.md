@@ -1,14 +1,14 @@
 
 # ProjectedHypersurfaces.jl
-[![Documentation](https://img.shields.io/badge/docs-dev-blue.svg)](https://oskarhenriksson.github.io/ProjectedHypersurfaces.jl/dev/)
-[![CI](https://github.com/oskarhenriksson/ProjectedHypersurfaces.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/oskarhenriksson/ProjectedHypersurfaces.jl/actions/workflows/ci.yml)
+[![Documentation](https://img.shields.io/badge/docs-dev-blue.svg)](https://juliaalgebra.github.io/ProjectedHypersurfaces.jl/dev/)
+[![CI](https://github.com/JuliaAlgebra/ProjectedHypersurfaces.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/JuliaAlgebra/ProjectedHypersurfaces.jl/actions/workflows/ci.yml)
 
 This package implements **numerical elimination** techniques for real algebraic hypersurfaces that arise as the Zariski closure of the projection of a variety with known defining equations. 
 
 The key concept from numerical algebraic geometry that underlies the package is that of **pseudo-witness sets**. For an accessible introduction, as well as some new results on which this package builds, see the recent preprint [Numerical Elimination: Computing Complements of Real Hypersurfaces Using Pseudo-Witness Sets](https://arxiv.org/abs/2601.04383) by Paul Breiding, John Cobb, Aviva Englander, Nayda Farnsworth, Jon Hauenstein, Oskar Henriksson, David Johnson, Jordy Lopez Garcia, and Deepak Mundayur (2026).
 
 > [!NOTE]
-> This package is under active early development. Interfaces and behavior may change as the package evolves. In particular, no versioned releases are available yet. For reproducible use, consider pinning to a specific git commit. If you encounter bugs, have questions or want to propose features, feel free to raise an [issue](https://github.com/oskarhenriksson/ProjectedHypersurfaces.jl/issues) or reach out directly to one of the authors.
+> This package is under active early development. Interfaces and behavior may change as the package evolves. In particular, no versioned releases are available yet. For reproducible use, consider pinning to a specific git commit. If you encounter bugs, have questions or want to propose features, feel free to raise an [issue](https://github.com/JuliaAlgebra/ProjectedHypersurfaces.jl/issues) or reach out directly to one of the authors.
 
 ## Installation
 
@@ -16,7 +16,7 @@ You can install the package directly from the repository as follows:
 
 ```julia-repl
 julia> using Pkg
-julia> Pkg.add(url="https://github.com/oskarhenriksson/ProjectedHypersurfaces.jl")
+julia> Pkg.add(url="https://github.com/JuliaAlgebra/ProjectedHypersurfaces.jl")
 ```
 To use the package, make sure that you have activated a Julia environment where the package is added. 
 
