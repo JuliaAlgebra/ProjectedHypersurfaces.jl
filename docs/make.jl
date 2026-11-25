@@ -9,5 +9,5 @@ makedocs(
 )
 
 deploydocs(
-    repo = "github.com/oskarhenriksson/ProjectedHypersurfaces.jl.git",
+    repo = "github.com/JuliaAlgebra/ProjectedHypersurfaces.jl.git",
 )
